@@ -6,6 +6,7 @@ using System;
 using System.ComponentModel;
 using System.Data;
 using System.Linq;
+using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -706,5 +707,129 @@ namespace DropTableEditor
 			var frmCredits = new frmCredits();
 			frmCredits.Show();
 		}
-	}
+
+        private string openFolderDialog()
+        {
+            using (var dlg = new FolderBrowserDialog())
+            {
+                if (dlg.ShowDialog() == DialogResult.OK)
+                {
+                    return dlg.SelectedPath;
+                }
+                return "error";
+            }
+        }
+
+        private async void menuOpenFromPath_Click(object sender, EventArgs e)
+        {
+            using (var dlg = new frmOpenFile())
+            {
+                Mobs = new BindingList<Mob>();
+                Groups = new BindingList<ItemGroup>();
+                Items = new BindingList<string>();
+
+                try
+                {
+                    dlg.MobInfo = new ShnFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MobInfo.shn"));
+                    dlg.ItemInfoServer = new ShnFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ItemInfoServer.shn"));
+                    dlg.ItemDropGroup = new ShineFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "World/ItemDropGroup.txt"));
+                    dlg.ItemDropTable = new ShineFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "World/ItemDropTable.txt"));
+                }
+                catch (Exception exception)
+                {
+                    MessageBox.Show(exception.Message, "Failed to open file");
+                }
+
+                ItemInfoServer = dlg.ItemInfoServer;
+                MobInfo = dlg.MobInfo;
+                ItemDropGroup = dlg.ItemDropGroup;
+                ItemDropTable = dlg.ItemDropTable;
+
+                ItemDropGroup.ReadFile();
+                ItemDropTable.ReadFile();
+
+                lblStatus.Text = "Reading MobInfo..";
+                await MobInfo.Open();
+
+                lblStatus.Text = "Reading ItemInfoServer..";
+                await ItemInfoServer.Open();
+
+                lblStatus.Text = "Putting items in their groups..";
+                await loadGroups();
+                lbItemGroups.DataSource = Groups;
+                lbItemGroups.DisplayMember = "Index";
+
+                lblStatus.Text = "Reading Mobs..";
+                await loadMobs();
+
+                lbMobs.DataSource = Mobs;
+                lbMobs.DisplayMember = "InxName";
+
+                await loadItems();
+                lbAllItems.DataSource = Items;
+
+                lblStatus.Text = "Ready";
+
+                toggleControls(true);
+                IsLoaded = true;
+            }
+        }
+
+        private async void menuOpenFromShine_Click(object sender, EventArgs e)
+        {
+            String FilePath = openFolderDialog();
+
+            using (var dlg = new frmOpenFile())
+            {
+                Mobs = new BindingList<Mob>();
+                Groups = new BindingList<ItemGroup>();
+                Items = new BindingList<string>();
+
+                try
+                {
+                    dlg.MobInfo = new ShnFile(Path.Combine(FilePath, "MobInfo.shn"));
+                    dlg.ItemInfoServer = new ShnFile(Path.Combine(FilePath, "ItemInfoServer.shn"));
+                    dlg.ItemDropGroup = new ShineFile(Path.Combine(FilePath, "World/ItemDropGroup.txt"));
+                    dlg.ItemDropTable = new ShineFile(Path.Combine(FilePath, "World/ItemDropTable.txt"));
+                }
+                catch (Exception exception)
+                {
+                    MessageBox.Show(exception.Message, "Failed to open file");
+                }
+
+                ItemInfoServer = dlg.ItemInfoServer;
+                MobInfo = dlg.MobInfo;
+                ItemDropGroup = dlg.ItemDropGroup;
+                ItemDropTable = dlg.ItemDropTable;
+
+                ItemDropGroup.ReadFile();
+                ItemDropTable.ReadFile();
+
+                lblStatus.Text = "Reading MobInfo..";
+                await MobInfo.Open();
+
+                lblStatus.Text = "Reading ItemInfoServer..";
+                await ItemInfoServer.Open();
+
+                lblStatus.Text = "Putting items in their groups..";
+                await loadGroups();
+                lbItemGroups.DataSource = Groups;
+                lbItemGroups.DisplayMember = "Index";
+
+                lblStatus.Text = "Reading Mobs..";
+                await loadMobs();
+
+                lbMobs.DataSource = Mobs;
+                lbMobs.DisplayMember = "InxName";
+
+                await loadItems();
+                lbAllItems.DataSource = Items;
+
+                lblStatus.Text = "Ready";
+
+                toggleControls(true);
+                IsLoaded = true;
+            }
+        }
+    }
 }
