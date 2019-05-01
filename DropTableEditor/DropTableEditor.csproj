@@ -45,6 +45,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="frmCredits.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmCredits.Designer.cs">
+      <DependentUpon>frmCredits.cs</DependentUpon>
+    </Compile>
     <Compile Include="frmMain.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -89,6 +95,9 @@
     <Compile Include="Tools\frmParent.cs">
       <SubType>Form</SubType>
     </Compile>
+    <EmbeddedResource Include="frmCredits.resx">
+      <DependentUpon>frmCredits.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="frmMain.resx">
       <DependentUpon>frmMain.cs</DependentUpon>
     </EmbeddedResource>

@@ -8,10 +8,10 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("DropTableEditor")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
+[assembly: AssemblyCompany("TeamNG")]
 [assembly: AssemblyProduct("DropTableEditor")]
-[assembly: AssemblyCopyright("Copyright ©  2016")]
-[assembly: AssemblyTrademark("")]
+[assembly: AssemblyCopyright("")]
+[assembly: AssemblyTrademark("Gherblino")]
 [assembly: AssemblyCulture("")]
 
 // Setting ComVisible to false makes the types in this assembly not visible 

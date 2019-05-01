@@ -700,5 +700,11 @@ namespace DropTableEditor
         {
 			SetCen(((Mob)lbMobs.SelectedItem).CenRate, CenRate.Value);
 		}
+
+		private void creditsToolStripMenuItem_Click(object sender, EventArgs e)
+		{
+			var frmCredits = new frmCredits();
+			frmCredits.Show();
+		}
 	}
 }
