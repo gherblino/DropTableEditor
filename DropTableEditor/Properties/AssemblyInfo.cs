@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("TeamNG")]
 [assembly: AssemblyProduct("DropTableEditor")]
-[assembly: AssemblyCopyright("")]
+[assembly: AssemblyCopyright("GPL-3.0")]
 [assembly: AssemblyTrademark("Gherblino")]
 [assembly: AssemblyCulture("")]
 
