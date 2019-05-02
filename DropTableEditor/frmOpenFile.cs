@@ -14,10 +14,10 @@ namespace DropTableEditor
 {
     public partial class frmOpenFile : Form
     {
-        public ShnFile MobInfo { get; private set; }
-        public ShnFile ItemInfoServer { get; private set; }
-        public ShineFile ItemDropGroup { get; private set; }
-        public ShineFile ItemDropTable { get; private set; }
+        public ShnFile MobInfo { get; set; }
+        public ShnFile ItemInfoServer { get; set; }
+        public ShineFile ItemDropGroup { get; set; }
+        public ShineFile ItemDropTable { get; set; }
 
         public frmOpenFile()
         {
