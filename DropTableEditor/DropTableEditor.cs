@@ -3,6 +3,7 @@ using DropTableEditor.Shine;
 using DropTableEditor.SHN;
 using DropTableEditor.Tools;
 using System;
+using System.CodeDom.Compiler;
 using System.ComponentModel;
 using System.Data;
 using System.Linq;
@@ -12,9 +13,9 @@ using System.Windows.Forms;
 
 namespace DropTableEditor
 {
-    public partial class frmMain : Form
+    public partial class DropTableEditor : Form
     {
-        private bool IsLoaded = false;
+        private bool _isLoaded;
         public BindingList<Mob> Mobs { get; set; }
         public BindingList<ItemGroup> Groups { get; set; }
         public BindingList<string> Items { get; set; }
@@ -23,64 +24,102 @@ namespace DropTableEditor
         public ShineFile ItemDropGroup { get; set; }
         public ShineFile ItemDropTable { get; set; }
 
-        public frmMain()
+        public DropTableEditor()
         {
             InitializeComponent();
-            toggleControls(false);
+            ToggleControls(false);
         }
 
-        private void menuOpen_Click(object sender, EventArgs e)
+        private void MenuOpen_Click(object sender, EventArgs e)
         {
-            openFiles();
+            OpenFiles();
         }
 
-        private async void openFiles()
+        private void OpenFiles()
         {
-            using (var dlg = new frmOpenFile())
-            {
-                if (dlg.ShowDialog(this) == DialogResult.OK)
-                {
-                    Mobs = new BindingList<Mob>();
-                    Groups = new BindingList<ItemGroup>();
-                    Items = new BindingList<string>();
+	        var dlg = new frmOpenFile();
 
-                    ItemInfoServer = dlg.ItemInfoServer;
-                    MobInfo = dlg.MobInfo;
-                    ItemDropGroup = dlg.ItemDropGroup;
-                    ItemDropTable = dlg.ItemDropTable;
-
-                    ItemDropGroup.ReadFile();
-                    ItemDropTable.ReadFile();
-
-                    lblStatus.Text = "Reading MobInfo..";
-                    await MobInfo.Open();
-
-                    lblStatus.Text = "Reading ItemInfoServer..";
-                    await ItemInfoServer.Open();
-
-                    lblStatus.Text = "Putting items in their groups..";
-                    await loadGroups();
-                    lbItemGroups.DataSource = Groups;
-                    lbItemGroups.DisplayMember = "Index";
-
-                    lblStatus.Text = "Reading Mobs..";
-                    await loadMobs();
-
-                    lbMobs.DataSource = Mobs;
-                    lbMobs.DisplayMember = "InxName";
-
-                    await loadItems();
-                    lbAllItems.DataSource = Items;
-
-                    lblStatus.Text = "Ready";
-
-                    toggleControls(true);
-                    IsLoaded = true;
-                }
-            }
+	        if (dlg.ShowDialog() == DialogResult.OK)
+	        {
+		        LoadFiles(dlg);
+	        }
         }
 
-        private Task loadItems()
+		private void MenuOpenFromShine_Click(object sender, EventArgs e)
+		{
+			var dlg = new FolderBrowserDialog();
+
+			if (dlg.ShowDialog() == DialogResult.OK)
+			{
+				OpenFiles(dlg.SelectedPath);
+			}
+		}
+
+		private void menuOpenFromPath_Click(object sender, EventArgs e)
+		{
+			OpenFiles(AppDomain.CurrentDomain.BaseDirectory);
+		}
+
+		private void OpenFiles(string path)
+		{
+			var dlg = new frmOpenFile();
+
+			try
+			{
+				dlg.MobInfo = new ShnFile(Path.Combine(path, "MobInfo.shn"));
+				dlg.ItemInfoServer = new ShnFile(Path.Combine(path, "ItemInfoServer.shn"));
+				dlg.ItemDropGroup = new ShineFile(Path.Combine(path, "World/ItemDropGroup.txt"));
+				dlg.ItemDropTable = new ShineFile(Path.Combine(path, "World/ItemDropTable.txt"));
+			}
+			catch (Exception exception)
+			{
+				MessageBox.Show(exception.Message, "Failed to open file");
+			}
+
+			LoadFiles(dlg);
+		}
+
+		public async void LoadFiles(frmOpenFile dlg)
+		{
+			Mobs = new BindingList<Mob>();
+			Groups = new BindingList<ItemGroup>();
+			Items = new BindingList<string>();
+
+			ItemInfoServer = dlg.ItemInfoServer;
+			MobInfo = dlg.MobInfo;
+			ItemDropGroup = dlg.ItemDropGroup;
+			ItemDropTable = dlg.ItemDropTable;
+
+			ItemDropGroup.ReadFile();
+			ItemDropTable.ReadFile();
+
+			lblStatus.Text = @"Reading MobInfo..";
+			await MobInfo.Open();
+
+			lblStatus.Text = @"Reading ItemInfoServer..";
+			await ItemInfoServer.Open();
+
+			lblStatus.Text = @"Putting items in their groups..";
+			await LoadGroups();
+			lbItemGroups.DataSource = Groups;
+			lbItemGroups.DisplayMember = "Index";
+
+			lblStatus.Text = @"Reading Mobs..";
+			await LoadMobs();
+
+			lbMobs.DataSource = Mobs;
+			lbMobs.DisplayMember = "InxName";
+
+			await LoadItems();
+			lbAllItems.DataSource = Items;
+
+			lblStatus.Text = @"Ready";
+
+			ToggleControls(true);
+			_isLoaded = true;
+		}
+
+        private Task LoadItems()
         {
             return Task.Factory.StartNew(() =>
             {
@@ -91,7 +130,7 @@ namespace DropTableEditor
             });
         }
 
-        private Task loadGroups()
+        private Task LoadGroups()
         {
             return Task.Factory.StartNew(() =>
             {
@@ -111,7 +150,7 @@ namespace DropTableEditor
             });
         }
 
-        private Task loadMobs()
+        private Task LoadMobs()
         {
             return Task.Factory.StartNew(() =>
             {
@@ -165,7 +204,36 @@ namespace DropTableEditor
             });
         }
 
-        private void lbItemGroups_SelectedIndexChanged(object sender, EventArgs e)
+        private void LoadMobGroupView()
+        {
+	        btnSave.Tag = null;
+	        txtGroupIndex.Clear();
+	        nudGroupDropRate.Value = 1;
+
+	        lvMobDropGroups.Items.Clear();
+
+	        var mob = (Mob)lbMobs.SelectedItem;
+	        MinCen.Value = mob.MinCen;
+	        MaxCen.Value = mob.MaxCen;
+	        CenRate.Value = mob.CenRate;
+
+	        nudGroupDropRate.Value = 0;
+	        UpGradeMin.Value = 0;
+	        UpGradeMax.Value = 0;
+
+	        foreach (var grp in ((Mob)lbMobs.SelectedItem).DropGroups)
+	        {
+		        var item = new ListViewItem(grp.Group.Index);
+
+		        item.SubItems.AddRange(new string[] {
+			        grp.DropRate + "%"
+		        });
+
+		        lvMobDropGroups.Items.Add(item);
+	        }
+        }
+
+		private void LbItemGroups_SelectedIndexChanged(object sender, EventArgs e)
         {
             var group = ((ItemGroup)lbItemGroups.SelectedItem);
             if (group != null)
@@ -177,48 +245,19 @@ namespace DropTableEditor
             }
         }
 
-        private void txtFilter_TextChanged(object sender, EventArgs e)
+        private void TxtFilter_TextChanged(object sender, EventArgs e)
         {
             var filteredMobs = Mobs.Where(x => x.InxName.ToLower().Contains(txtFilter.Text.ToLower())).ToList();
             lbMobs.DataSource = filteredMobs;
             lbMobs.DisplayMember = "InxName";
         }
 
-        private void lbMobs_SelectedIndexChanged(object sender, EventArgs e)
+        private void LbMobs_SelectedIndexChanged(object sender, EventArgs e)
         {
-            loadMobGroupView();
+            LoadMobGroupView();
         }
 
-        private void loadMobGroupView()
-        {
-            btnSave.Tag = null;
-            txtGroupIndex.Clear();
-            nudGroupDropRate.Value = 1;
-
-            lvMobDropGroups.Items.Clear();
-
-            var mob = (Mob)lbMobs.SelectedItem;
-            MinCen.Value = mob.MinCen;
-            MaxCen.Value = mob.MaxCen;
-            CenRate.Value = mob.CenRate;
-
-            nudGroupDropRate.Value = 0;
-            UpGradeMin.Value = 0;
-            UpGradeMax.Value = 0;
-
-            foreach (var grp in ((Mob)lbMobs.SelectedItem).DropGroups)
-            {
-                var item = new ListViewItem(grp.Group.Index);
-
-                item.SubItems.AddRange(new string[] {
-                    grp.DropRate + "%"
-                });
-
-                lvMobDropGroups.Items.Add(item);
-            }
-        }
-
-        private void btnRemoveGroup_Click(object sender, EventArgs e)
+        private void BtnRemoveGroup_Click(object sender, EventArgs e)
         {
             if (btnSave.Tag == null)
             {
@@ -234,10 +273,10 @@ namespace DropTableEditor
             nudGroupDropRate.Value = 0;
             txtGroupIndex.Text = "";
 
-            loadMobGroupView();
+            LoadMobGroupView();
         }
 
-        private void lvMobDropGroups_SelectedIndexChanged(object sender, EventArgs e)
+        private void LvMobDropGroups_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (lvMobDropGroups.SelectedIndices.Count <= 0)
                 return;
@@ -257,7 +296,7 @@ namespace DropTableEditor
             }
         }
 
-        private void btnAddMobDropGroup_Click(object sender, EventArgs e)
+        private void BtnAddMobDropGroup_Click(object sender, EventArgs e)
         {
             var dropGroup = Groups.FirstOrDefault(x => x.Index == txtAddGroup.Text);
             if (dropGroup != null)
@@ -266,7 +305,7 @@ namespace DropTableEditor
                 var entry = new MobDropGroupEntry(dropGroup, 100, 0, 0);
                 mob.DropGroups.Add(entry);
 
-                loadMobGroupView();
+                LoadMobGroupView();
             }
             else
             {
@@ -274,7 +313,7 @@ namespace DropTableEditor
             }
         }
 
-        private void btnAddItem_Click(object sender, EventArgs e)
+        private void BtnAddItem_Click(object sender, EventArgs e)
         {
             try
             {
@@ -305,19 +344,19 @@ namespace DropTableEditor
             }
         }
 
-        private void txtAllItemsFilter_TextChanged(object sender, EventArgs e)
+        private void TxtAllItemsFilter_TextChanged(object sender, EventArgs e)
         {
             var filterItems = Items.Where(x => x.ToLower().Contains(txtAllItemsFilter.Text.ToLower())).ToList();
             lbAllItems.DataSource = filterItems;
         }
 
-        private void txtItemGroupFilter_TextChanged(object sender, EventArgs e)
+        private void TxtItemGroupFilter_TextChanged(object sender, EventArgs e)
         {
             var filterGroups = Groups.Where(x => x.Index.ToLower().Contains(txtItemGroupFilter.Text.ToLower())).ToList();
             lbItemGroups.DataSource = filterGroups;
         }
 
-        private void btnSave_Click(object sender, EventArgs e)
+        private void BtnSave_Click(object sender, EventArgs e)
         {
             if (btnSave.Tag == null)
             {
@@ -336,10 +375,10 @@ namespace DropTableEditor
             group.UpGradeMin = Convert.ToInt32(UpGradeMin.Value);
             group.UpGradeMax = Convert.ToInt32(UpGradeMax.Value);
 
-            loadMobGroupView();
+            LoadMobGroupView();
         }
 
-        private void nudMaximum_ValueChanged(object sender, EventArgs e)
+        private void NudMaximum_ValueChanged(object sender, EventArgs e)
         {
             try
             {
@@ -351,7 +390,7 @@ namespace DropTableEditor
 			}
 		}
 
-        private void btnRemoveItem_Click(object sender, EventArgs e)
+        private void BtnRemoveItem_Click(object sender, EventArgs e)
         {
             if (lbGroupItems.SelectedItem == null || lbItemGroups.SelectedItem == null)
                 return;
@@ -359,7 +398,7 @@ namespace DropTableEditor
             ((ItemGroup)lbItemGroups.SelectedItem).Items.RemoveAt(lbGroupItems.SelectedIndex);
         }
 
-        private void nudMinimum_ValueChanged(object sender, EventArgs e)
+        private void NudMinimum_ValueChanged(object sender, EventArgs e)
         {
             try
             {
@@ -371,7 +410,7 @@ namespace DropTableEditor
 			}
 		}
 
-        private void btnAddItemGroup_Click(object sender, EventArgs e)
+        private void BtnAddItemGroup_Click(object sender, EventArgs e)
         {
             if (Groups.Where(x => x.Index == txtNewItemGroup.Text).Count() <= 0)
             {
@@ -385,13 +424,13 @@ namespace DropTableEditor
             }
         }
 
-        private void btnDeleteGroup_Click(object sender, EventArgs e)
+        private void BtnDeleteGroup_Click(object sender, EventArgs e)
         {
             if (MessageBox.Show("Are you sure you want to delete this group?", "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Information) != DialogResult.Yes)
                 return;
 
             var grp = ((ItemGroup)lbItemGroups.SelectedItem);
-            removeGroup(grp);
+            RemoveGroup(grp);
 
             if (lbItemGroups.Items.Count > 0)
             {
@@ -405,10 +444,10 @@ namespace DropTableEditor
                 nudMinimum.Value = 1;
             }
 
-            loadMobGroupView();
+            LoadMobGroupView();
         }
 
-        private void removeGroup(ItemGroup grp)
+        private void RemoveGroup(ItemGroup grp)
         {
             foreach (var mob in Mobs)
             {
@@ -421,7 +460,7 @@ namespace DropTableEditor
             Groups.Remove(grp);
         }
 
-        private void menuRemoveAllGroups_Click(object sender, EventArgs e)
+        private void MenuRemoveAllGroups_Click(object sender, EventArgs e)
         {
             try
             {
@@ -436,10 +475,10 @@ namespace DropTableEditor
 
                 foreach (var grp in Groups.ToList())
                 {
-                    removeGroup(grp);
+                    RemoveGroup(grp);
                 }
 
-                loadMobGroupView();
+                LoadMobGroupView();
 
                 lbGroupItems.DataSource = null;
                 txtSelectedGroupName.Clear();
@@ -452,31 +491,31 @@ namespace DropTableEditor
             }
         }
 
-        private async void menuSave_Click(object sender, EventArgs e)
+        private async void MenuSave_Click(object sender, EventArgs e)
         {
-            if (IsLoaded)
+            if (_isLoaded)
             {
                 lblStatus.Text = "Saving..";
 
-                toggleControls(false);
-                await saveDrops();
-                toggleControls(true);
+                ToggleControls(false);
+                await SaveDrops();
+                ToggleControls(true);
 
                 lblStatus.Text = "Saved!";
             }
         }
 
-        private Task saveDrops()
+        private Task SaveDrops()
         {
             return Task.Factory.StartNew(() =>
             {
-                saveItemDropGroup();
-                saveItemDropTable();
-                saveItemInfoServer();
+                SaveItemDropGroup();
+                SaveItemDropTable();
+                SaveItemInfoServer();
             });
         }
 
-        private void saveItemInfoServer()
+        private void SaveItemInfoServer()
         {
             for (int i = 0; i < ItemInfoServer.Table.Rows.Count; i++)
             {
@@ -508,7 +547,7 @@ namespace DropTableEditor
             ItemInfoServer.Save();
         }
 
-        private void saveItemDropTable()
+        private void SaveItemDropTable()
         {
             ItemDropTable.DataSet.Tables[0].Rows.Clear();
 
@@ -565,7 +604,7 @@ namespace DropTableEditor
             ItemDropTable.SaveFile();
         }
 
-        private void saveItemDropGroup()
+        private void SaveItemDropGroup()
         {
             ItemDropGroup.DataSet.Tables[0].Rows.Clear();
 
@@ -591,7 +630,7 @@ namespace DropTableEditor
 
 		private void CheckIfLoaded()
 		{
-			if (!IsLoaded)
+			if (!_isLoaded)
 			{
 				throw new Exception("You need to load your files before this tool is available.");
 			}
@@ -617,7 +656,7 @@ namespace DropTableEditor
 			}
 		}
 
-		private void menuAddGroupToAll_Click(object sender, EventArgs e)
+		private void MenuAddGroupToAll_Click(object sender, EventArgs e)
         {
 			var frm = new frmAddToAll();
 			CheckDropGroup(frm);
@@ -628,10 +667,10 @@ namespace DropTableEditor
 				mob.DropGroups.Add(entry);
 			}
 
-			loadMobGroupView();
+			LoadMobGroupView();
         }
 
-		private void menuGroupRateEdit_Click(object sender, EventArgs e)
+		private void MenuGroupRateEdit_Click(object sender, EventArgs e)
         {
 			var frm = new frmGroupRateEditor();
 			CheckDropGroup(frm);
@@ -642,10 +681,10 @@ namespace DropTableEditor
 					entry.DropRate = frm.Value;
 				}
 			}
-			loadMobGroupView();
+			LoadMobGroupView();
         }
 
-        private void toggleControls(bool enabled)
+        private void ToggleControls(bool enabled)
         {
             txtAllItemsFilter.Enabled = enabled;
             txtItemGroupFilter.Enabled = enabled;
@@ -702,134 +741,10 @@ namespace DropTableEditor
 			SetCen(((Mob)lbMobs.SelectedItem).CenRate, CenRate.Value);
 		}
 
-		private void creditsToolStripMenuItem_Click(object sender, EventArgs e)
+		private void CreditsToolStripMenuItem_Click(object sender, EventArgs e)
 		{
 			var frmCredits = new frmCredits();
 			frmCredits.Show();
 		}
-
-        private string openFolderDialog()
-        {
-            using (var dlg = new FolderBrowserDialog())
-            {
-                if (dlg.ShowDialog() == DialogResult.OK)
-                {
-                    return dlg.SelectedPath;
-                }
-                return "error";
-            }
-        }
-
-        private async void menuOpenFromPath_Click(object sender, EventArgs e)
-        {
-            using (var dlg = new frmOpenFile())
-            {
-                Mobs = new BindingList<Mob>();
-                Groups = new BindingList<ItemGroup>();
-                Items = new BindingList<string>();
-
-                try
-                {
-                    dlg.MobInfo = new ShnFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MobInfo.shn"));
-                    dlg.ItemInfoServer = new ShnFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ItemInfoServer.shn"));
-                    dlg.ItemDropGroup = new ShineFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "World/ItemDropGroup.txt"));
-                    dlg.ItemDropTable = new ShineFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "World/ItemDropTable.txt"));
-                }
-                catch (Exception exception)
-                {
-                    MessageBox.Show(exception.Message, "Failed to open file");
-                }
-
-                ItemInfoServer = dlg.ItemInfoServer;
-                MobInfo = dlg.MobInfo;
-                ItemDropGroup = dlg.ItemDropGroup;
-                ItemDropTable = dlg.ItemDropTable;
-
-                ItemDropGroup.ReadFile();
-                ItemDropTable.ReadFile();
-
-                lblStatus.Text = "Reading MobInfo..";
-                await MobInfo.Open();
-
-                lblStatus.Text = "Reading ItemInfoServer..";
-                await ItemInfoServer.Open();
-
-                lblStatus.Text = "Putting items in their groups..";
-                await loadGroups();
-                lbItemGroups.DataSource = Groups;
-                lbItemGroups.DisplayMember = "Index";
-
-                lblStatus.Text = "Reading Mobs..";
-                await loadMobs();
-
-                lbMobs.DataSource = Mobs;
-                lbMobs.DisplayMember = "InxName";
-
-                await loadItems();
-                lbAllItems.DataSource = Items;
-
-                lblStatus.Text = "Ready";
-
-                toggleControls(true);
-                IsLoaded = true;
-            }
-        }
-
-        private async void menuOpenFromShine_Click(object sender, EventArgs e)
-        {
-            String FilePath = openFolderDialog();
-
-            using (var dlg = new frmOpenFile())
-            {
-                Mobs = new BindingList<Mob>();
-                Groups = new BindingList<ItemGroup>();
-                Items = new BindingList<string>();
-
-                try
-                {
-                    dlg.MobInfo = new ShnFile(Path.Combine(FilePath, "MobInfo.shn"));
-                    dlg.ItemInfoServer = new ShnFile(Path.Combine(FilePath, "ItemInfoServer.shn"));
-                    dlg.ItemDropGroup = new ShineFile(Path.Combine(FilePath, "World/ItemDropGroup.txt"));
-                    dlg.ItemDropTable = new ShineFile(Path.Combine(FilePath, "World/ItemDropTable.txt"));
-                }
-                catch (Exception exception)
-                {
-                    MessageBox.Show(exception.Message, "Failed to open file");
-                }
-
-                ItemInfoServer = dlg.ItemInfoServer;
-                MobInfo = dlg.MobInfo;
-                ItemDropGroup = dlg.ItemDropGroup;
-                ItemDropTable = dlg.ItemDropTable;
-
-                ItemDropGroup.ReadFile();
-                ItemDropTable.ReadFile();
-
-                lblStatus.Text = "Reading MobInfo..";
-                await MobInfo.Open();
-
-                lblStatus.Text = "Reading ItemInfoServer..";
-                await ItemInfoServer.Open();
-
-                lblStatus.Text = "Putting items in their groups..";
-                await loadGroups();
-                lbItemGroups.DataSource = Groups;
-                lbItemGroups.DisplayMember = "Index";
-
-                lblStatus.Text = "Reading Mobs..";
-                await loadMobs();
-
-                lbMobs.DataSource = Mobs;
-                lbMobs.DisplayMember = "InxName";
-
-                await loadItems();
-                lbAllItems.DataSource = Items;
-
-                lblStatus.Text = "Ready";
-
-                toggleControls(true);
-                IsLoaded = true;
-            }
-        }
-    }
+	}
 }
