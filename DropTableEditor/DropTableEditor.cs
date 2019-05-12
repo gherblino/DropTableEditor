@@ -320,23 +320,48 @@ namespace DropTableEditor
                 if (lbAllItems.SelectedItems.Count <= 0)
                     throw new Exception("You have to select an item from the list first.");
 
-                var newItem = lbAllItems.SelectedItem.ToString();
-                var relatedGroups = Groups.Where(x => x.Items.Contains(newItem));
-
-                if (relatedGroups.Count() >= 2)
+                if (lbAllItems.SelectedItems.Count > 1)
                 {
-                    throw new Exception("This item already belongs to two other item groups. " +
-                        "Remove it from one of the following groups before adding it to this one.\n\n" +
-                        "Group 1: " + relatedGroups.First().Index + "\n" +
-                        "Group 2: " + relatedGroups.Last().Index);
-                }
+                    foreach (var selectedItem in lbAllItems.SelectedItems)
+                    {
+                        var relatedGroups = Groups.Where(x => x.Items.Contains(selectedItem));
 
-                if (((ItemGroup)lbItemGroups.SelectedItem).Items.Contains(newItem))
+                        if (relatedGroups.Count() >= 2)
+                        {
+                            throw new Exception("This item already belongs to two other item groups. " +
+                                "Remove it from one of the following groups before adding it to this one.\n\n" +
+                                "Group 1: " + relatedGroups.First().Index + "\n" +
+                                "Group 2: " + relatedGroups.Last().Index);
+                        }
+
+                        if (((ItemGroup)lbItemGroups.SelectedItem).Items.Contains(selectedItem))
+                        {
+                            throw new Exception("This group already has this item added.");
+                        }
+
+                        ((ItemGroup)lbItemGroups.SelectedItem).Items.Add(selectedItem.ToString());
+                    }
+                }
+                else
                 {
-                    throw new Exception("This group already has this item added.");
-                }
+                    var newItem = lbAllItems.SelectedItem.ToString();
+                    var relatedGroups = Groups.Where(x => x.Items.Contains(newItem));
 
-                ((ItemGroup)lbItemGroups.SelectedItem).Items.Add(newItem);
+                    if (relatedGroups.Count() >= 2)
+                    {
+                        throw new Exception("This item already belongs to two other item groups. " +
+                            "Remove it from one of the following groups before adding it to this one.\n\n" +
+                            "Group 1: " + relatedGroups.First().Index + "\n" +
+                            "Group 2: " + relatedGroups.Last().Index);
+                    }
+
+                    if (((ItemGroup)lbItemGroups.SelectedItem).Items.Contains(newItem))
+                    {
+                        throw new Exception("This group already has this item added.");
+                    }
+
+                    ((ItemGroup)lbItemGroups.SelectedItem).Items.Add(newItem);
+                }
             }
             catch (Exception ex)
             {
